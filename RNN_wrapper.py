@@ -1,12 +1,7 @@
-from common.RAC import *
-from common.EUNN import EUNNCell
-from common.scoRNN import *
-from common.OrthogonalRNN import *
-import pickle
+from scoRNN import *
 import os, errno
 
-name_to_cell = {'RNN': tf.contrib.rnn.BasicRNNCell, 'LSTM': tf.contrib.rnn.BasicLSTMCell, 'EUNN': EUNNCell,
-                'RAC': RACCell, 'OrthogonalRNN': OrthogonalRNNCell, 'scoRNN': scoRNNCell}
+name_to_cell = {'RNN': tf.contrib.rnn.BasicRNNCell, 'LSTM': tf.contrib.rnn.BasicLSTMCell, 'scoRNN': scoRNNCell}
 name_to_optimizer = {'ADAM': tf.train.AdamOptimizer, 'SGD': tf.train.GradientDescentOptimizer, 'RMSProp': tf.train.RMSPropOptimizer}
 
 def make_sure_path_exists(path):
@@ -15,6 +10,10 @@ def make_sure_path_exists(path):
     except OSError as exception:
         if exception.errno != errno.EEXIST:
             raise
+
+def bias_variable(shape, initializer=None, name=None):
+    initial = initializer if initializer is not None else tf.constant(0.1, shape=shape)
+    return tf.Variable(initial, name=name)
 
 class RNN:
     def __init__(self, input_dim, output_dim, hidden_dim, T, depth, batch_size, tf_session, configuration_name,
