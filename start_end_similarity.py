@@ -1,4 +1,5 @@
 import argparse
+import numpy.matlib
 from start_end_similarity_utils import *
 
 parser = argparse.ArgumentParser(description='Script to run copy task with different rnn architectures')
@@ -9,12 +10,11 @@ parser.add_argument('-num_iters', type=int, help='num training iterations', requ
 parser.add_argument('-test_size', type=int, help='test set size', required=True)
 parser.add_argument('-validation_size', type=int, help='validation set size', required=True)
 parser.add_argument('-rnn_cell', type=str, help='RNN variant', default='scoRNN')
-parser.add_argument('-rnn_depth', type=int, help='validation set size', required=True)
+parser.add_argument('-rnn_depth', type=int, help='number of layers', required=True)
 parser.add_argument('-rnn_hidden_dim', type=int, help='state size of each layer', required=True)
 parser.add_argument('-batch_size', type=int, help='batch size', default=128)
 parser.add_argument('-optimizer', type=str, help='optimizer', default='RMSProp')
 parser.add_argument('-learning_rate', type=float, help='learning_rate', default=1e-3)
-parser.add_argument('-rnn_num_retrainings', type=int, help='num retrainings of the same configuration', default=1)
 parser.add_argument('-load_weights', type=bool, help='start training with exisiting weights', default=0)
 parser.add_argument('-generate_data', type=bool, help='regenerate data')
 parser.add_argument('-print_verbosity', type=int, help='verbosity of prints', default=0)
@@ -24,7 +24,6 @@ args = parser.parse_args()
 C = 2 # num of classes is C+1
 A_ASCII = 65
 ASCII_MAX = 126
-# params = get_conf(args.conf_index)
 print(args)
 n = args.n  # alphabet size
 m = args.m

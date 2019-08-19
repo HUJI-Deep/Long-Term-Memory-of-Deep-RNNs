@@ -110,7 +110,7 @@ def train_rnn(X_validation, y_validation, conf_name):
     def new_rnn(seed=-1):
         rnn = RNN(len(alphabet), (C+1), args.rnn_hidden_dim, args.T, args.rnn_depth, args.batch_size, tf_session,
                   "T" + str(args.T) + "_" + conf_name + ("_seed" + str(seed) if not args.load_weights else ""),
-                  args.rnn_cell, single_output=True, logspace=False, to_one_hot=True,
+                  args.rnn_cell, single_output=True, to_one_hot=True,
                   learning_rate=args.learning_rate,
                   optimizer_name=args.optimizer,
                   tb_verbosity=args.tb_verbosity, print_verbosity=args.print_verbosity)
