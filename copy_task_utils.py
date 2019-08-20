@@ -1,5 +1,4 @@
-def conf_name(M, n, logspace, cell, depth, width, batch_size, optimizer, eta, hidden_eta, alpha):
-    return "M" + str(M) + "_n" + str(n) + "_" + ("logspace-" if logspace else "") + \
-                cell + "_depth" + str(depth) + "_width" + str(width) + \
-                "_BS" + str(batch_size) + "_" + optimizer + "_eta%.4f" % eta + "_hiddeneta%.4f" % hidden_eta + (
-                "_alpha%.3f" % alpha if alpha > 0 else "")
+def conf_name(args):
+    return "M" + str(args.M) + "_n" + str(args.n) + \
+                args.rnn_cell + "_depth" + str(args.rnn_depth) + "_width" + str(args.rnn_hidden_dim) + \
+                "_BS" + str(args.batch_size) + "_" + args.optimizer + "_eta%.4f" % args.learning_rate
