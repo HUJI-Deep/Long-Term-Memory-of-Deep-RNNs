@@ -1,10 +1,5 @@
-import os, sys, errno
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from RNN_wrapper import *
 from copy_task_utils import *
 import argparse
-import fcntl
 import time
 import pickle
 
@@ -28,87 +23,20 @@ parser.add_argument('-print_verbosity', type=int, help='verbosity of prints', de
 
 args = parser.parse_args()
 
-M = args.M
-BLANK = '-'
-START_RECALL = ':'
-A_ASCII = 65
-ASCII_MAX = 126
-special_chars = [BLANK, START_RECALL]
-n = args.n  # alphabet size
-alphabet = np.array([chr(x) for x in range(A_ASCII, A_ASCII + n)] + special_chars)
+alphabet = np.array([chr(x) for x in range(A_ASCII, A_ASCII + args.n)] + special_chars)
 char_to_i = {c: i for (i, c) in enumerate(alphabet)}
 floattype = tf.float32
 
 confname = conf_name(args)
+set_globals(args, alphabet, char_to_i, floattype)
 tb_writer = tf.summary.FileWriter('tb_general/' + confname)
 dump_metadata = True
 
 
-def make_sure_path_exists(path):
-    try:
-        os.makedirs(path)
-    except OSError as exception:
-        if exception.errno != errno.EEXIST:
-            raise
-
-
-def one_hots_to_str(X):
-    return [''.join(alphabet[np.argmax(X[i], axis=1)]) for i in range(X.shape[0])]
-
-
-def idx_to_str(y):
-    return [''.join(alphabet[y[i]]) for i in range(y.shape[0])]
-
-
-def to_one_hot(x, tf_session):
-    # convert x to one_hot
-    x_ = tf.placeholder("int32", [dim for dim in x.shape])
-    X_tensor = tf.one_hot(x, len(alphabet), dtype=floattype)
-    return tf_session.run(X_tensor, feed_dict={x_: x})
-
-
-def train_and_evaluate(B):
-    T = 2 * M + B  # input/output dimension
+def train_and_evaluate():
+    T = 2 * args.M + args.B  # input/output dimension
     weights_dir = 'rnn_weights'
-    weights_file = weights_dir + '/' + 'B' + str(B) + '_' + confname + '.pkl'
-
-    def preprocess_data(words):
-        num_samples = words.shape[0]
-        assert words.shape[1] == M
-        x = np.column_stack((words, np.full((num_samples, B + M), char_to_i[BLANK]))).astype(np.uint32)
-        x[:, T - M] = np.full((num_samples,), char_to_i[START_RECALL])
-        y = np.column_stack((np.full((num_samples, M + B), char_to_i[BLANK]), words)).astype(np.int32)
-        X = x
-        return X, y
-
-    def generate_batch(num_examples):
-        words = np.random.randint(n, size=(num_examples, M))
-        X, y = preprocess_data(words)
-        return X, y
-
-    def get_data(test_size, validation_size):
-        data_filename = 'M' + str(args.M) + '_n' + str(args.n) + '_' + 'BS' + str(args.batch_size) + '_data.npz'
-        try:
-            data = np.load(data_filename if not args.generate_data else '')
-        except FileNotFoundError:
-            test_words = np.random.randint(n, size=(test_size, M))
-            validation_words = np.random.randint(n, size=(validation_size, M))
-            f_stream = open(data_filename, 'w+')
-            while True:
-                try:
-                    fcntl.flock(f_stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                    break
-                except BlockingIOError:
-                    time.sleep(0.1)
-            np.savez(data_filename, validation_words=validation_words, test_words=test_words)
-            fcntl.flock(f_stream, fcntl.LOCK_UN)
-        else:
-            test_words = data['test_words']
-            validation_words = data['validation_words']
-
-        X_test, y_test = preprocess_data(test_words)
-        X_validation, y_validation = preprocess_data(validation_words)
-        return X_test, y_test, X_validation, y_validation
+    weights_file = weights_dir + '/' + 'B' + str(args.B) + '_' + confname + '.pkl'
 
     # data preprocessing
     batch_size = args.batch_size
@@ -117,7 +45,7 @@ def train_and_evaluate(B):
     X_test, y_test, X_validation, y_validation = get_data(test_size, validation_size)
 
     def new_rnn(seed, tf_session):
-        extended_conf_name = "B" + str(B) + "_" + confname + "_seed" + str(seed)
+        extended_conf_name = "B" + str(args.B) + "_" + confname + "_seed" + str(seed)
         rnn = RNN(len(alphabet), len(alphabet), args.rnn_hidden_dim, T, args.rnn_depth, batch_size,
                   tf_session,
                   extended_conf_name, cell_name=args.rnn_cell,
@@ -137,7 +65,7 @@ def train_and_evaluate(B):
             if args.print_verbosity > 1:
                 print("WEIGHTS LOADED SUCCESSFULLY!")
 
-        early_stop_TH = 1e-3 * (M / T)
+        early_stop_TH = 1e-3 * (args.M / T)
         if args.print_verbosity > 1:
             print("early_stop_TH:", early_stop_TH)
         epochs_till_converge = rnn.train(generate_batch, args.num_iters, X_validation, y_validation,
@@ -170,8 +98,8 @@ def train_and_evaluate(B):
     softmax_cross_entropy = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y_, logits=o_))
     correct_pred = tf.equal(tf.argmax(o_, axis=2), y_)
     accuracy = tf.reduce_mean(tf.cast(correct_pred, floattype))
-    blank_accuracy = tf.reduce_mean(tf.cast(correct_pred[:, :(M + B)], floattype))
-    data_accuracy = tf.reduce_mean(tf.cast(correct_pred[:, (M + B):], floattype))
+    blank_accuracy = tf.reduce_mean(tf.cast(correct_pred[:, :(args.M + args.B)], floattype))
+    data_accuracy = tf.reduce_mean(tf.cast(correct_pred[:, (args.M + args.B):], floattype))
 
     # tensorboard summaries
     loss_ph = tf.placeholder(floattype, (), "loss_ph")
@@ -184,9 +112,9 @@ def train_and_evaluate(B):
     test_summaries = tf.summary.merge([test_loss_summary, test_acc_summary, test_dacc_summary])
 
     # baseline predictions
-    rr_loss = (M * np.log(n)) / (B+2*M)
-    rr_acc = (M+B+M/n) / T
-    rr_dacc = 1 / n
+    rr_loss = (args.M * np.log(args.n)) / (args.B+2*args.M)
+    rr_acc = (args.M+args.B+args.M/args.n) / T
+    rr_dacc = 1 / args.n
 
     # rnn evaluation
     _, rnn_test_o = rnn.predict(X_test)
@@ -207,7 +135,7 @@ def train_and_evaluate(B):
     rnn_test_dacc = cum_dacc / num_batches
 
     test_summary = tf_session.run(test_summaries, feed_dict={loss_ph: rnn_test_loss, acc_ph: rnn_test_acc, dacc_ph: rnn_test_dacc})
-    tb_writer.add_summary(test_summary, B)
+    tb_writer.add_summary(test_summary, args.B)
     tb_writer.flush()
 
     if args.print_verbosity > 1 and T < 1000:
@@ -226,9 +154,9 @@ def train_and_evaluate(B):
                        feed_dict={y_: y_test, o_: rnn_test_o})
         print(args.rnn_cell + ": " + shift_str,
               "  loss: %f  accuracy: %f  blank_accuracy: %f  data_accuracy: %f" % (loss, acc, bacc, dacc))
-        print("baseline loss:", (M * np.log(n)) / (B+2*M))
+        print("baseline loss:", (args.M * np.log(args.n)) / (args.B+2*args.M))
 
     return rr_loss, rr_acc, rr_dacc, rnn_test_loss, rnn_test_acc, rnn_test_dacc, num_epochs, runtime, seed
 
 
-train_and_evaluate(args.B)
+train_and_evaluate()
