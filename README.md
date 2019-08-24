@@ -22,8 +22,10 @@ python run_copying_task.py -num_iters 50000 -rnn_depth 2 -rnn_hidden_dim 64 -B 1
 
 ## Start-End Similarity Task
 $cd start_end_similarity
+
 $python run_SES.py -num_iters 50000 -rnn_depth 2 -rnn_hidden_dim 64 -T 80
 
 ## Permuted pixel-by-pixel MNIST
 $cd sequential_MNIST
+
 $python run_seq_MNIST.py -permute 1 -num_iters 50000 -rnn_depth 2 -rnn_hidden_dim 64
