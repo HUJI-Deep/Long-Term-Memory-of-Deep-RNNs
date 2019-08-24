@@ -1,0 +1,4 @@
+*.pyc
+*.npz
+*.xml
+*.iml
