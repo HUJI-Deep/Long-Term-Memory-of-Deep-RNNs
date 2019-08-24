@@ -191,8 +191,11 @@ class RNN:
             return True
         return False
 
-    def train(self, get_batch_func, num_iters, X_validation, y_validation, auto_learning_rate_decay=False,
+    def train(self, get_batch_func, num_iters, X_validation, y_validation, load_weights=False, auto_learning_rate_decay=False,
               early_stopping=False, check_convergence_period=1000, convergence_min_delta=1e-3, convergence_patience=5):
+
+        if load_weights:
+            self.load_weights()
 
         if self.tb_verbosity > 0:
             self.validation_loss_ph = tf.placeholder(self.floattype, (), "validation_loss_ph")
@@ -207,7 +210,7 @@ class RNN:
             self.second_phase = False
 
         for j in range(num_iters):
-            if j % check_convergence_period == 0:
+            if j % check_convergence_period == 0 or j == num_iters-1:
                 if (early_stopping or auto_learning_rate_decay) and self.print_verbosity > 1:
                     print("iter: %d  patience_cnt: %d" % (j, self.patience_cnt))
                 if early_stopping or auto_learning_rate_decay:

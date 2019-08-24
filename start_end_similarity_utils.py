@@ -3,18 +3,16 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import random
 from RNN_wrapper import *
 
-n = -1
 C = -1
-m = -1
+args = None
 alphabet = None
 char_to_i = None
 
-def set_globals(n_, C_, args_, m_, alphabet_, char_to_i_):
-    global n, C, args, m, alphabet, char_to_i
-    n = n_
+
+def set_globals(C_, args_, alphabet_, char_to_i_):
+    global C, args, alphabet, char_to_i
     args = args_
     C = min(C_, args.T // 2)
-    m = m_
     alphabet = alphabet_
     char_to_i = char_to_i_
     assert args.T % 2 == 0, "ERROR: start-end similarity doesn't support odd T values"
@@ -28,9 +26,10 @@ def make_sure_path_exists(path):
             raise
 
 
-def get_conf_name(C, n, m, cell, depth, width, bs, optimizer, eta):
-    return "C" + str(C) + "_n" + str(n) + "_m" + str(m) + '_' + cell + "_depth" + str(depth) + "_width" + str(width) \
-    + "_BS" + str(bs) + "_" + optimizer + "_eta%.4f" % eta
+def get_conf_name(args):
+    return "T" + str(args.T) + "_n" + str(args.n) + "_m" + str(args.m) + '_' + args.rnn_cell + "_depth" + \
+           str(args.rnn_depth) + "_width" + str(args.rnn_hidden_dim) \
+    + "_BS" + str(args.batch_size) + "_" + args.optimizer + "_eta%.4f" % args.learning_rate
 
 
 def idx_to_str(y):
@@ -40,13 +39,13 @@ def idx_to_str(y):
 def calc_y(X):
     def get_scores(X):
         # m = T//2
-        pos = np.argmax(X < n, axis=1)
-        sample_idx = np.matlib.repmat(np.arange(X.shape[0]), m, 1).T
-        pos_idx = np.matlib.repmat(pos, m, 1).T + np.matlib.repmat(np.arange(m), X.shape[0], 1)
+        pos = np.argmax(X < args.n, axis=1)
+        sample_idx = np.matlib.repmat(np.arange(X.shape[0]), args.m, 1).T
+        pos_idx = np.matlib.repmat(pos, args.m, 1).T + np.matlib.repmat(np.arange(args.m), X.shape[0], 1)
         first_half = X[sample_idx, pos_idx]
         second_half = X[sample_idx, pos_idx + args.T // 2]
         refl_counts = np.sum(np.equal(first_half, second_half), axis=1)
-        return refl_counts / m
+        return refl_counts / args.m
 
     scores = get_scores(X)
     y = np.round(C * scores)
@@ -56,23 +55,23 @@ def calc_y(X):
 
 def uniform_y_data(data_size):
     # m = T//2
-    num_overlaps = np.round(np.random.randint(C+1, size=data_size) * float(m / C)).astype(np.int32)
-    half_sequences = np.random.randint(n, size=(data_size, m))
-    second_half = np.full((data_size, m), -1)
+    num_overlaps = np.round(np.random.randint(C+1, size=data_size) * float(args.m / C)).astype(np.int32)
+    half_sequences = np.random.randint(args.n, size=(data_size, args.m))
+    second_half = np.full((data_size, args.m), -1)
     for i, seq in enumerate(half_sequences):
-        overlap_indices = random.sample(range(m), num_overlaps[i])
-        for t in range(m):
+        overlap_indices = random.sample(range(args.m), num_overlaps[i])
+        for t in range(args.m):
             if t in overlap_indices:
                 second_half[i, t] = seq[t]
             else:
-                non_refl_vals = np.concatenate((np.arange(seq[t]), np.arange(seq[t] + 1, n)))
+                non_refl_vals = np.concatenate((np.arange(seq[t]), np.arange(seq[t] + 1, args.n)))
                 second_half[i, t] = np.random.choice(non_refl_vals)
 
-    if m < args.T//2:
-        pos = np.random.randint(args.T//2-m, size=data_size)
-        X = np.full((data_size, args.T), n)
-        sample_idx = np.matlib.repmat(np.arange(data_size), m, 1).T
-        pos_idx = np.matlib.repmat(pos, m, 1).T + np.matlib.repmat(np.arange(m), data_size, 1)
+    if args.m < args.T//2:
+        pos = np.random.randint(args.T//2-args.m, size=data_size)
+        X = np.full((data_size, args.T), args.n)
+        sample_idx = np.matlib.repmat(np.arange(data_size), args.m, 1).T
+        pos_idx = np.matlib.repmat(pos, args.m, 1).T + np.matlib.repmat(np.arange(args.m), data_size, 1)
         X[sample_idx, pos_idx] = half_sequences
         X[sample_idx, pos_idx+args.T//2] = second_half
         return X
@@ -88,7 +87,7 @@ def sample_data(num_samples):
 
 def get_data(test_size, validation_size):
     make_sure_path_exists('data')
-    data_filename = 'data/' + 'data_T' + str(args.T) + '_C' + str(C) + '_n' + str(n) + '_m' + str(m) + '_bs' + str(args.batch_size) + '.npz'
+    data_filename = 'data/' + 'data_T' + str(args.T) + '_C' + str(C) + '_n' + str(args.n) + '_m' + str(args.m) + '_bs' + str(args.batch_size) + '.npz'
     try:
         data = np.load(data_filename if not args.generate_data else '')
     except FileNotFoundError:
@@ -107,38 +106,25 @@ def get_data(test_size, validation_size):
 
 
 def train_rnn(X_validation, y_validation, conf_name):
-    def new_rnn(seed=-1):
+    def new_rnn():
         rnn = RNN(len(alphabet), (C+1), args.rnn_hidden_dim, args.T, args.rnn_depth, args.batch_size, tf_session,
-                  "T" + str(args.T) + "_" + conf_name + ("_seed" + str(seed) if not args.load_weights else ""),
+                  conf_name,
                   args.rnn_cell, single_output=True, to_one_hot=True,
                   learning_rate=args.learning_rate,
                   optimizer_name=args.optimizer,
                   tb_verbosity=args.tb_verbosity, print_verbosity=args.print_verbosity)
         return rnn
 
-    weights_dir = 'rnn_weights'
-    weights_file = weights_dir + '/' + "T" + str(args.T) + "_" + conf_name + '.ckpt'
-
-    # set session and seed
-    seed = np.random.randint(0, 10000)
-    tf_session = tf.Session()
-    tf.set_random_seed(seed)
-    np.random.seed(seed)
-
     # train
-    rnn = new_rnn(seed)
+    tf_session = tf.Session()
+    rnn = new_rnn()
     tf_session.run(tf.global_variables_initializer())
-    saver = tf.train.Saver()
-
-    if args.load_weights:
-        saver.restore(tf_session, weights_file)
-        if args.print_verbosity > 1:
-            print("WEIGHTS LOADED SUCCESSFULLY!")
 
     convergence_min_delta = 1e-3
     if args.print_verbosity > 1:
         print("min_delta %f" % convergence_min_delta)
-    num_iterations = rnn.train(sample_data, args.num_iters, X_validation, y_validation, auto_learning_rate_decay=True,
+    num_iterations = rnn.train(sample_data, args.num_iters, X_validation, y_validation, load_weights=args.load_weights,
+                               auto_learning_rate_decay=True,
                                convergence_min_delta=convergence_min_delta, convergence_patience=10)
 
     return rnn, num_iterations, tf_session

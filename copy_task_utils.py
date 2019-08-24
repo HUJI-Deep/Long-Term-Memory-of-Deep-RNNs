@@ -1,6 +1,7 @@
 import os, sys, errno
 # sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from RNN_wrapper import *
+import time
 
 BLANK = '-'
 START_RECALL = ':'
@@ -12,21 +13,23 @@ alphabet = None
 char_to_i = None
 floattype = None
 T = -1
+confname = ""
 
 
 def conf_name(args):
-    return "M" + str(args.M) + "_n" + str(args.n) + \
+    return "B" + str(args.B) + "_" + "M" + str(args.M) + "_n" + str(args.n) + \
                 '_' + args.rnn_cell + "_depth" + str(args.rnn_depth) + "_width" + str(args.rnn_hidden_dim) + \
                 "_BS" + str(args.batch_size) + "_" + args.optimizer + "_eta%.4f" % args.learning_rate
 
 
-def set_globals(args_, alphabet_, char_to_i_, floattype_):
-    global args, alphabet, char_to_i, floattype, T
+def set_globals(args_, alphabet_, char_to_i_, floattype_, confname_):
+    global args, alphabet, char_to_i, floattype, T, confname
     args = args_
     alphabet = alphabet_
     char_to_i = char_to_i_
     floattype = floattype_
     T = 2 * args.M + args.B
+    confname = confname_
 
 
 def make_sure_path_exists(path):
@@ -84,46 +87,40 @@ def get_data(test_size, validation_size):
     X_validation, y_validation = preprocess_data(validation_words)
     return X_test, y_test, X_validation, y_validation
 
-    def new_rnn(seed, tf_session):
-        extended_conf_name = "B" + str(args.B) + "_" + confname + "_seed" + str(seed)
-        rnn = RNN(len(alphabet), len(alphabet), args.rnn_hidden_dim, T, args.rnn_depth, batch_size,
-                  tf_session,
-                  extended_conf_name, cell_name=args.rnn_cell,
-                  to_one_hot=True,
-                  learning_rate=args.learning_rate,
-                  optimizer_name=args.optimizer,
-                  tb_verbosity=1, log_period=100,
-                  print_verbosity=args.print_verbosity)
-        return rnn
 
-    def run_train(rnn, tf_session):
-        start_time = time.time()
-        if args.load_weights:
-            saved_vars = pickle.load(open(weights_file, 'rb'))
-            tf_session.run(
-                [tf.assign(var, value=value) for var, value in zip(tf.trainable_variables(), saved_vars)])
-            if args.print_verbosity > 1:
-                print("WEIGHTS LOADED SUCCESSFULLY!")
+def new_rnn(tf_session):
+    rnn = RNN(len(alphabet), len(alphabet), args.rnn_hidden_dim, T, args.rnn_depth, args.batch_size,
+              tf_session,
+              confname, cell_name=args.rnn_cell,
+              to_one_hot=True,
+              learning_rate=args.learning_rate,
+              optimizer_name=args.optimizer,
+              tb_verbosity=1, log_period=100,
+              print_verbosity=args.print_verbosity)
+    return rnn
 
-        early_stop_TH = 1e-3 * (args.M / T)
-        if args.print_verbosity > 1:
-            print("early_stop_TH:", early_stop_TH)
-        epochs_till_converge = rnn.train(generate_batch, args.num_iters, X_validation, y_validation,
-                                         auto_learning_rate_decay=True, convergence_min_delta=early_stop_TH, convergence_patience=10)
-        runtime = time.time() - start_time
 
-        return epochs_till_converge, runtime
+def run_train(rnn, X_validation, y_validation):
+    start_time = time.time()
 
-    def train_models():
-        seed = np.random.randint(0, 1000)
-        tf_session = tf.Session()
-        tf.set_random_seed(seed)
-        np.random.seed(seed)
-        rnn = new_rnn(seed, tf_session)
-        tf_session.run(tf.global_variables_initializer())
-        epochs_to_converge, runtime = run_train(rnn, tf_session)
+    early_stop_TH = 1e-3 * (args.M / T)
+    if args.print_verbosity > 1:
+        print("early_stop_TH:", early_stop_TH)
+    epochs_till_converge = rnn.train(generate_batch, args.num_iters, X_validation, y_validation,
+                                     load_weights=args.load_weights, auto_learning_rate_decay=True,
+                                     convergence_min_delta=early_stop_TH, convergence_patience=10)
+    runtime = time.time() - start_time
 
-        if args.print_verbosity > 0:
-            print("seed: %d  num_epochs: %d  runtime: %d" % (seed, epochs_to_converge, runtime))
+    return epochs_till_converge, runtime
 
-        return rnn, tf_session, epochs_to_converge, runtime, seed
+
+def train_models(X_validation, y_validation):
+    tf_session = tf.Session()
+    rnn = new_rnn(tf_session)
+    tf_session.run(tf.global_variables_initializer())
+    epochs_to_converge, runtime = run_train(rnn, X_validation, y_validation)
+
+    if args.print_verbosity > 0:
+        print("num_epochs: %d  runtime: %d" % (epochs_to_converge, runtime))
+
+    return rnn, tf_session, epochs_to_converge, runtime

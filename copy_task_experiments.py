@@ -1,6 +1,5 @@
 from copy_task_utils import *
 import argparse
-import time
 import pickle
 
 parser = argparse.ArgumentParser(description='Script to run copy task with different rnn architectures')
@@ -8,8 +7,8 @@ parser.add_argument('-M', type=int, help='num of characters to memorize', defaul
 parser.add_argument('-n', type=int, help='alphabet size', default=32)
 parser.add_argument('-B', type=int, help='delay time', required=True)
 parser.add_argument('-num_iters', type=int, help='num training iterations', required=True)
-parser.add_argument('-test_size', type=int, help='test set size', required=True)
-parser.add_argument('-validation_size', type=int, help='validation set size', required=True)
+parser.add_argument('-test_size', type=int, help='test set size', default=10000)
+parser.add_argument('-validation_size', type=int, help='validation set size', default=5000)
 parser.add_argument('-rnn_cell', type=str, help='RNN variant', default='scoRNN')
 parser.add_argument('-rnn_depth', type=int, help='number of layers', required=True)
 parser.add_argument('-rnn_hidden_dim', type=int, help='state size of each layer', required=True)
@@ -28,15 +27,13 @@ char_to_i = {c: i for (i, c) in enumerate(alphabet)}
 floattype = tf.float32
 
 confname = conf_name(args)
-set_globals(args, alphabet, char_to_i, floattype)
+set_globals(args, alphabet, char_to_i, floattype, confname)
 tb_writer = tf.summary.FileWriter('tb_general/' + confname)
 dump_metadata = True
 
 
 def train_and_evaluate():
     T = 2 * args.M + args.B  # input/output dimension
-    weights_dir = 'rnn_weights'
-    weights_file = weights_dir + '/' + 'B' + str(args.B) + '_' + confname + '.pkl'
 
     # data preprocessing
     batch_size = args.batch_size
@@ -44,52 +41,8 @@ def train_and_evaluate():
     test_size = (args.test_size // batch_size) * batch_size
     X_test, y_test, X_validation, y_validation = get_data(test_size, validation_size)
 
-    def new_rnn(seed, tf_session):
-        extended_conf_name = "B" + str(args.B) + "_" + confname + "_seed" + str(seed)
-        rnn = RNN(len(alphabet), len(alphabet), args.rnn_hidden_dim, T, args.rnn_depth, batch_size,
-                  tf_session,
-                  extended_conf_name, cell_name=args.rnn_cell,
-                  to_one_hot=True,
-                  learning_rate=args.learning_rate,
-                  optimizer_name=args.optimizer,
-                  tb_verbosity=1, log_period=100,
-                  print_verbosity=args.print_verbosity)
-        return rnn
-
-    def run_train(rnn, tf_session):
-        start_time = time.time()
-        if args.load_weights:
-            saved_vars = pickle.load(open(weights_file, 'rb'))
-            tf_session.run(
-                [tf.assign(var, value=value) for var, value in zip(tf.trainable_variables(), saved_vars)])
-            if args.print_verbosity > 1:
-                print("WEIGHTS LOADED SUCCESSFULLY!")
-
-        early_stop_TH = 1e-3 * (args.M / T)
-        if args.print_verbosity > 1:
-            print("early_stop_TH:", early_stop_TH)
-        epochs_till_converge = rnn.train(generate_batch, args.num_iters, X_validation, y_validation,
-                                         auto_learning_rate_decay=True, convergence_min_delta=early_stop_TH, convergence_patience=10)
-        runtime = time.time() - start_time
-
-        return epochs_till_converge, runtime
-
-    def train_models():
-        seed = np.random.randint(0, 1000)
-        tf_session = tf.Session()
-        tf.set_random_seed(seed)
-        np.random.seed(seed)
-        rnn = new_rnn(seed, tf_session)
-        tf_session.run(tf.global_variables_initializer())
-        epochs_to_converge, runtime = run_train(rnn, tf_session)
-
-        if args.print_verbosity > 0:
-            print("seed: %d  num_epochs: %d  runtime: %d" % (seed, epochs_to_converge, runtime))
-
-        return rnn, tf_session, epochs_to_converge, runtime, seed
-
     # training
-    rnn, tf_session, num_epochs, runtime, seed = train_models()
+    rnn, tf_session, num_epochs, runtime = train_models(X_validation, y_validation)
 
     # evaluation
     # common tf placeholders/tensors
@@ -156,7 +109,7 @@ def train_and_evaluate():
               "  loss: %f  accuracy: %f  blank_accuracy: %f  data_accuracy: %f" % (loss, acc, bacc, dacc))
         print("baseline loss:", (args.M * np.log(args.n)) / (args.B+2*args.M))
 
-    return rr_loss, rr_acc, rr_dacc, rnn_test_loss, rnn_test_acc, rnn_test_dacc, num_epochs, runtime, seed
+    return rr_loss, rr_acc, rr_dacc, rnn_test_loss, rnn_test_acc, rnn_test_dacc, num_epochs, runtime
 
 
 train_and_evaluate()

@@ -96,8 +96,9 @@ tf_session.run(tf.global_variables_initializer())
 if args.load_weights:
     rnn.load_weights()
 else:
-    num_iterations = rnn.train(get_batch, args.num_iters, X_validation, y_validation, auto_learning_rate_decay=True,
-           convergence_min_delta=convergence_min_delta, convergence_patience=(5 if params['rnn_batch_size'] > 256 else 10))
+    num_iterations = rnn.train(get_batch, args.num_iters, X_validation, y_validation, load_weights=args.load_weights,
+                               auto_learning_rate_decay=True, convergence_min_delta=convergence_min_delta,
+                               convergence_patience=(5 if params['rnn_batch_size'] > 256 else 10))
 
 # tensorboard summaries
 test_loss_summary = tf.summary.scalar("loss test", rnn.loss_by_ph)
