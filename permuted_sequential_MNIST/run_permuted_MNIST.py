@@ -1,24 +1,22 @@
-from seq_MNIST_conf_file import *
-from seq_MNIST_utils import *
+from permuted_MNIST_utils import *
 from sklearn.utils import shuffle
 import tensorflow as tf
 import argparse
 
 parser = argparse.ArgumentParser(description='Script to run digit sum with different rnn architectures')
-parser.add_argument('-permute', type=bool, help='permute pixels', default=False)
+parser.add_argument('-permute', type=bool, help='permute pixels', required=True)
 parser.add_argument('-num_iters', type=int, help='num training iterations', required=True)
-parser.add_argument('-conf_index', type=int, help='index of architecture conf', required=True)
 parser.add_argument('-validation_size', type=int, help='validation set size', default=5000)
-parser.add_argument('-rnn_num_retrainings', type=int, help='num retrainings of the same configuration', default=1)
+parser.add_argument('-rnn_cell', type=str, help='RNN variant', default='scoRNN')
+parser.add_argument('-rnn_depth', type=int, help='number of layers', required=True)
+parser.add_argument('-rnn_hidden_dim', type=int, help='state size of each layer', required=True)
+parser.add_argument('-batch_size', type=int, help='batch size', default=128)
+parser.add_argument('-optimizer', type=str, help='optimizer', default='RMSProp')
+parser.add_argument('-learning_rate', type=float, help='learning_rate', default=1e-3)
 parser.add_argument('-load_weights', type=bool, help='start training with existing weights', default=0)
-parser.add_argument('-print_verbosity', type=int, help='verbosity of prints', default=0)
+parser.add_argument('-print_verbosity', type=int, help='verbosity of prints', default=2)
 args = parser.parse_args()
 
-params = get_conf(args.conf_index)
-print(params)
-
-# input_dim = 256
-# input_bits = 8
 input_dim = 1
 output_dim = 10
 image_len = 28*28
@@ -30,19 +28,22 @@ if args.permute:
 
 
 def preprocess(X, y):
+    print("preprocessing: ")
     X_expanded = np.reshape(X, (-1, image_len, input_dim))
     X_continuous = X_expanded / 255.0
     if args.permute:
+        print("PERMUTING!")
         X_continuous_permuted = X_continuous[:, xpermutation]
     y_expanded = np.expand_dims(y, axis=1)
     return (X_continuous_permuted if args.permute else X_continuous), y_expanded
+
 
 # load
 mnist = tf.keras.datasets.mnist
 (x_train, y_train), (x_test, y_test) = mnist.load_data()
 
 # set sizes
-batch_size = params['rnn_batch_size']
+batch_size = args.batch_size
 test_size = (x_test.shape[0] // batch_size) * batch_size
 validation_size = (args.validation_size // batch_size) * batch_size
 full_train_size = (x_train.shape[0] // batch_size) * batch_size
@@ -59,9 +60,8 @@ X_validation, y_validation = preprocess(X_validation, y_validation)
 X_train, y_train = preprocess(X_train, y_train)
 X_test, y_test = preprocess(X_test, y_test)
 
-conf_name = get_conf_name(params['rnn_cell'], params['rnn_depth'], params['rnn_hidden_dim'],
-                          params['rnn_batch_size'], params['optimizer'], params['rnn_learning_rate'],
-                          params['rnn_hidden_eta'], params['rms_decay'])
+conf_name = get_conf_name(args.rnn_cell, args.rnn_depth, args.rnn_hidden_dim,
+                          args.batch_size, args.optimizer, args.learning_rate)
 
 batch_idx = 0
 num_batches = X_train.shape[0] // batch_size
@@ -76,15 +76,14 @@ def get_batch(bs):
         X_train, y_train = shuffle(X_train, y_train, random_state=np.random.randint(0, 1000))
     return X, y
 
+
 # init
 tf_session = tf.Session()
 tb_writer = tf.summary.FileWriter('tb_general/' + conf_name)
-rnn = RNN(input_dim, output_dim, params['rnn_hidden_dim'], T, params['rnn_depth'], params['rnn_batch_size'], tf_session,
-                  "T" + str(T) + "_" + conf_name,
-                  params['rnn_cell'], single_output=True, logspace=False, to_one_hot=False,
-                  learning_rate=params['rnn_learning_rate'],
-                  hidden_eta=params['rnn_hidden_eta'],
-                  optimizer_name=params['optimizer'], rms_decay=params['rms_decay'],
+rnn = RNN(input_dim, output_dim, args.rnn_hidden_dim, T, args.rnn_depth, args.batch_size, tf_session,
+                  conf_name,
+                  args.rnn_cell, single_output=True, to_one_hot=False,
+                  learning_rate=args.learning_rate, optimizer_name=args.optimizer,
                   tb_verbosity=1, print_verbosity=args.print_verbosity)
 
 convergence_min_delta = 1e-3
@@ -93,12 +92,9 @@ if args.print_verbosity > 1:
 
 # train
 tf_session.run(tf.global_variables_initializer())
-if args.load_weights:
-    rnn.load_weights()
-else:
-    num_iterations = rnn.train(get_batch, args.num_iters, X_validation, y_validation, load_weights=args.load_weights,
-                               auto_learning_rate_decay=True, convergence_min_delta=convergence_min_delta,
-                               convergence_patience=(5 if params['rnn_batch_size'] > 256 else 10))
+num_iterations = rnn.train(get_batch, args.num_iters, X_validation, y_validation, load_weights=args.load_weights,
+                           auto_learning_rate_decay=True, convergence_min_delta=convergence_min_delta,
+                           convergence_patience=(5 if args.batch_size > 256 else 10))
 
 # tensorboard summaries
 test_loss_summary = tf.summary.scalar("loss test", rnn.loss_by_ph)

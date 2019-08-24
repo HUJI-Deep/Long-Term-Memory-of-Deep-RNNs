@@ -1,6 +1,6 @@
-import os, sys, errno
-# sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from RNN_wrapper import *
+import os, sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from common.RNN_wrapper import *
 import time
 
 BLANK = '-'
@@ -72,7 +72,9 @@ def generate_batch(num_examples):
 
 
 def get_data(test_size, validation_size):
-    data_filename = 'M' + str(args.M) + '_n' + str(args.n) + '_' + 'BS' + str(args.batch_size) + '_data.npz'
+    data_dir = 'data/'
+    make_sure_path_exists(data_dir)
+    data_filename = data_dir + 'M' + str(args.M) + '_n' + str(args.n) + '_' + 'BS' + str(args.batch_size) + '_data.npz'
     try:
         data = np.load(data_filename if not args.generate_data else '')
     except FileNotFoundError:
@@ -90,13 +92,8 @@ def get_data(test_size, validation_size):
 
 def new_rnn(tf_session):
     rnn = RNN(len(alphabet), len(alphabet), args.rnn_hidden_dim, T, args.rnn_depth, args.batch_size,
-              tf_session,
-              confname, cell_name=args.rnn_cell,
-              to_one_hot=True,
-              learning_rate=args.learning_rate,
-              optimizer_name=args.optimizer,
-              tb_verbosity=1, log_period=100,
-              print_verbosity=args.print_verbosity)
+              tf_session, confname, cell_name=args.rnn_cell, to_one_hot=True, learning_rate=args.learning_rate,
+              optimizer_name=args.optimizer, tb_verbosity=1, log_period=100, print_verbosity=args.print_verbosity)
     return rnn
 
 

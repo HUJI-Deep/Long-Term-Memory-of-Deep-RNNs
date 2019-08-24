@@ -1,6 +1,6 @@
 import argparse
 import numpy.matlib
-from start_end_similarity_utils import *
+from SES_utils import *
 
 parser = argparse.ArgumentParser(description='Script to run copy task with different rnn architectures')
 parser.add_argument('-T', type=int, help='sequence length', required=True)
@@ -17,7 +17,7 @@ parser.add_argument('-optimizer', type=str, help='optimizer', default='RMSProp')
 parser.add_argument('-learning_rate', type=float, help='learning_rate', default=1e-3)
 parser.add_argument('-load_weights', type=bool, help='start training with exisiting weights', default=0)
 parser.add_argument('-generate_data', type=bool, help='regenerate data')
-parser.add_argument('-print_verbosity', type=int, help='verbosity of prints', default=0)
+parser.add_argument('-print_verbosity', type=int, help='verbosity of prints', default=2)
 parser.add_argument('-tb_verbosity', type=int, help='verbosity of tensorboard logging', default=1)
 
 args = parser.parse_args()

@@ -1,7 +1,7 @@
-import os, sys, errno
+import os, sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import random
-from RNN_wrapper import *
+from common.RNN_wrapper import *
 
 C = -1
 args = None
@@ -87,7 +87,8 @@ def sample_data(num_samples):
 
 def get_data(test_size, validation_size):
     make_sure_path_exists('data')
-    data_filename = 'data/' + 'data_T' + str(args.T) + '_C' + str(C) + '_n' + str(args.n) + '_m' + str(args.m) + '_bs' + str(args.batch_size) + '.npz'
+    data_filename = 'data/' + 'data_T' + str(args.T) + '_C' + str(C) + '_n' + str(args.n) \
+                    + '_m' + str(args.m) + '_bs' + str(args.batch_size) + '.npz'
     try:
         data = np.load(data_filename if not args.generate_data else '')
     except FileNotFoundError:

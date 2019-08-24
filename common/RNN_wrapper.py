@@ -1,4 +1,4 @@
-from scoRNN import *
+from common.scoRNN import *
 import os, errno
 
 name_to_cell = {'BasicRNN': tf.contrib.rnn.BasicRNNCell, 'LSTM': tf.nn.rnn_cell.LSTMCell, 'scoRNN': scoRNNCell}
