@@ -2,6 +2,7 @@ import os, sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import random
 from common.RNN_wrapper import *
+from common.utils import *
 
 C = -1
 args = None
@@ -16,14 +17,6 @@ def set_globals(C_, args_, alphabet_, char_to_i_):
     alphabet = alphabet_
     char_to_i = char_to_i_
     assert args.T % 2 == 0, "ERROR: start-end similarity doesn't support odd T values"
-
-
-def make_sure_path_exists(path):
-    try:
-        os.makedirs(path)
-    except OSError as exception:
-        if exception.errno != errno.EEXIST:
-            raise
 
 
 def get_conf_name(args):

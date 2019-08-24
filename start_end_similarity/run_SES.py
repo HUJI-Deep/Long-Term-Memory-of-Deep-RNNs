@@ -15,8 +15,8 @@ parser.add_argument('-rnn_hidden_dim', type=int, help='state size of each layer'
 parser.add_argument('-batch_size', type=int, help='batch size', default=128)
 parser.add_argument('-optimizer', type=str, help='optimizer', default='RMSProp')
 parser.add_argument('-learning_rate', type=float, help='learning_rate', default=1e-3)
-parser.add_argument('-load_weights', type=bool, help='start training with exisiting weights', default=0)
-parser.add_argument('-generate_data', type=bool, help='regenerate data')
+parser.add_argument('-load_weights', type=str2bool, help='start training with exisiting weights', default=0)
+parser.add_argument('-generate_data', type=str2bool, help='regenerate data')
 parser.add_argument('-print_verbosity', type=int, help='verbosity of prints', default=2)
 parser.add_argument('-tb_verbosity', type=int, help='verbosity of tensorboard logging', default=1)
 
@@ -25,7 +25,7 @@ C = 2 # num of classes is C+1
 A_ASCII = 65
 ASCII_MAX = 126
 print(args)
-assert args.m <= args.T, 'm must be smaller than T//2'
+assert args.m <= args.T//2, 'm must be smaller than T//2'
 assert args.m >= 2, 'the minimal valid m is 2'
 alphabet = np.array([chr(x) for x in range(A_ASCII, A_ASCII + args.n)] + (['-'] if (args.m < args.T//2) else []))
 char_to_i = {c: i for (i, c) in enumerate(alphabet)}

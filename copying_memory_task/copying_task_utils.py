@@ -1,6 +1,7 @@
 import os, sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from common.RNN_wrapper import *
+from common.utils import *
 import time
 
 BLANK = '-'
@@ -30,14 +31,6 @@ def set_globals(args_, alphabet_, char_to_i_, floattype_, confname_):
     floattype = floattype_
     T = 2 * args.M + args.B
     confname = confname_
-
-
-def make_sure_path_exists(path):
-    try:
-        os.makedirs(path)
-    except OSError as exception:
-        if exception.errno != errno.EEXIST:
-            raise
 
 
 def one_hots_to_str(X):
