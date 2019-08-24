@@ -1,6 +1,5 @@
-from copy_task_utils import *
+from copying_task_utils import *
 import argparse
-import pickle
 
 parser = argparse.ArgumentParser(description='Script to run copy task with different rnn architectures')
 parser.add_argument('-M', type=int, help='num of characters to memorize', default=30)
@@ -15,10 +14,9 @@ parser.add_argument('-rnn_hidden_dim', type=int, help='state size of each layer'
 parser.add_argument('-batch_size', type=int, help='batch size', default=128)
 parser.add_argument('-optimizer', type=str, help='optimizer', default='RMSProp')
 parser.add_argument('-learning_rate', type=float, help='learning_rate', default=1e-3)
-parser.add_argument('-rnn_num_retrainings', type=int, help='num retrainings of rnn', default=1)
 parser.add_argument('-generate_data', type=bool, help='regenerate data')
 parser.add_argument('-load_weights', type=bool, help='load existing weights at the beginning of train', default=0)
-parser.add_argument('-print_verbosity', type=int, help='verbosity of prints', default=0)
+parser.add_argument('-print_verbosity', type=int, help='verbosity of prints', default=2)
 
 args = parser.parse_args()
 
