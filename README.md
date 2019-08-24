@@ -17,8 +17,9 @@ Our results can be reproduced by running each experiment k times with the k appr
 Command line examples are presented below - one configuration for each experiment.
 
 ## Copying Memory Task
-cd copying_memory_task
-python run_copying_task.py -num_iters 50000 -rnn_depth 2 -rnn_hidden_dim 64 -B 10
+$cd copying_memory_task
+
+$python run_copying_task.py -num_iters 50000 -rnn_depth 2 -rnn_hidden_dim 64 -B 10
 
 ## Start-End Similarity Task
 $cd start_end_similarity
