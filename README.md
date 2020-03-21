@@ -10,7 +10,7 @@ https://arxiv.org/abs/1710.09431 - On the Long-Term Memory of Deep Recurrent Net
 
 # Comments
 - The code of scoRNN.py is taken from  https://github.com/SpartinStuff/scoRNN. We strongly recommend you to read
-  their paper - Scaled Cayley Orthogonal Recurrent Network (scoRNN) Cell - https://arxiv.org/abs/1707.09520.
+  their paper - "Orthogonal Recurrent Neural Networks with Scaled Cayley Transform" - https://arxiv.org/abs/1707.09520.
 
 # Command line Examples
 Our results can be reproduced by running each experiment k times with the k appropriate configurations.
